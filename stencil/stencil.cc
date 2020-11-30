@@ -14,6 +14,8 @@
 std::mutex mu[20000];
 std::thread threads[10];
 
+int thread_num = 8;
+
 template <typename P>
 void calc(P *in, P *out, int height, int width, int from, int to) {
     for (int i = from; i <= to; i++) {
@@ -102,7 +104,6 @@ void ApplyStencil(ImageClass<P> &img_in, ImageClass<P> &img_out) {
     P *in = img_in.pixel;
     P *out = img_out.pixel;
 
-    int thread_num = 8;
     /*
     thread_num = 9;
     for (int i = 0; i < thread_num; i++) {
