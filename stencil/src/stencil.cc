@@ -4,6 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <immintrin.h>
 #include <iostream>
 #include <mutex>
 #include <random>
@@ -13,6 +14,8 @@
 
 std::mutex mu[20000];
 std::thread threads[10];
+
+// 400ms
 
 template <typename P>
 void calc(P *in, P *out, int height, int width, int from, int to) {
@@ -35,6 +38,65 @@ void calc(P *in, P *out, int height, int width, int from, int to) {
         }
     }
 }
+
+float tmp[] = {8.0f, 8.0f, 8.0f, 8.0f};
+
+// 3500ms...
+/*
+template <typename P>
+void calc(P *in, P *out, int height, int width, int from, int to) {
+    for (int i = 0; i < 9; i++) {
+        int po = from * width + 1, pi;
+        switch (i) {
+            case 0:
+                pi = (from - 1) * width;
+                break;
+            case 1:
+                pi = (from - 1) * width + 1;
+                break;
+            case 2:
+                pi = (from - 1) * width + 2;
+                break;
+            case 3:
+                pi = (from)*width;
+                break;
+            case 4:
+                pi = (from)*width + 2;
+                break;
+            case 5:
+                pi = (from + 1) * width;
+                break;
+            case 6:
+                pi = (from + 1) * width + 1;
+                break;
+            case 7:
+                pi = (from + 1) * width + 2;
+                break;
+            case 8:  // sepcial case
+                pi = (from)*width;
+        }
+
+        for (int k = 0; k <= to - from; k++) {
+            int p, q;
+            for (p = pi + k * width, q = po + k * width; p < pi + k * width + width - 2; p += 4, q += 4) {
+                if (i < 8) {
+                    __m128 u = _mm_loadu_ps(in + p);
+                    __m128 v = _mm_loadu_ps(out + q);
+                    __m128 r = _mm_sub_ps(v, u);
+                    _mm_storeu_ps(out + q, r);
+                } else {
+                    __m128 u = _mm_loadu_ps(in + p);
+                    __m128 t = _mm_loadu_ps(tmp);
+                    u = _mm_mul_ps(u, t);
+                    __m128 v = _mm_loadu_ps(out + q);
+                    __m128 r = _mm_add_ps(v, u);
+                    _mm_storeu_ps(out + q, r);
+                }
+            }
+        }
+    }
+}
+*/
 
 /*
 // might be overflow
@@ -114,8 +176,13 @@ void ApplyStencil(ImageClass<P> &img_in, ImageClass<P> &img_out) {
     // calc<P>(in, out, mu, height, width, i);
 
     for (int i = 0; i < thread_num; i++)
-        threads[i] = std::thread(
-            calc<P>, in, out, height, width, (height - 2) * i / thread_num + 1, (height - 2) * (i + 1) / thread_num);
+        threads[i] = std::thread(calc<P>,
+                                 in,
+                                 out,
+                                 height,
+                                 width,
+                                 (height - 2) / thread_num * i + 1,
+                                 i == thread_num - 1 ? height - 2 : (height - 2) / thread_num * (i + 1));
 
     for (int i = 0; i < thread_num; i++)
         threads[i].join();
